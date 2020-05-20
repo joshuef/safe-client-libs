@@ -72,8 +72,8 @@ impl From<CoreError> for Error {
     }
 }
 
-impl<T: 'static> From<SendError<T>> for Error {
-    fn from(error: SendError<T>) -> Self {
+impl From<SendError> for Error {
+    fn from(error: SendError) -> Self {
         Self(AuthError::from(error))
     }
 }

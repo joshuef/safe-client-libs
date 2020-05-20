@@ -28,8 +28,8 @@ use safe_core::ipc::req::{
 };
 use safe_core::ipc::resp::IpcResp;
 use safe_core::ipc::{decode_msg, IpcError, IpcMsg};
-use safe_core::{client, CoreError, FutureExt};
-use safe_core::{fry, ok};
+use safe_core::{client, CoreError};
+use futures::future::FutureExt;
 use safe_nd::MDataAddress;
 use std::ffi::CStr;
 use std::os::raw::{c_char, c_void};
@@ -340,7 +340,7 @@ pub unsafe extern "C" fn encode_auth_resp(
 
 /// Update containers permissions for an App.
 #[no_mangle]
-pub unsafe extern "C" fn encode_containers_resp(
+pub async unsafe extern "C" fn encode_containers_resp(
     auth: *const Authenticator,
     req: *const ContainersReq,
     req_id: u32,
@@ -357,22 +357,24 @@ pub unsafe extern "C" fn encode_containers_resp(
             let permissions = cont_req.containers.clone();
             let app_id = cont_req.app.id;
 
-            (*auth).send(move |client| {
+            let client = (*auth).client;
+            // (*auth).send(move |client| {
                 let c2 = client.clone();
                 let c3 = client.clone();
                 let c4 = client.clone();
 
-                config::get_app(client, &app_id)
-                    .and_then(move |app| {
+                let app = config::get_app(&client, &app_id).await?;
+                    // .and_then(move |app| {
                         let app_pk = app.keys.public_key();
-                        access_container::update_container_perms(&c2, permissions, app_pk)
-                            .map(move |perms| (app, perms))
-                    })
-                    .and_then(move |(app, mut perms)| {
+                        let mut perms = access_container::update_container_perms(&c2, permissions, app_pk).await?;
+                            // .map(move |perms| (app, perms))
+                    // })
+                    // .and_then(move |(app, mut perms)| {
                         let app_keys = app.keys;
 
-                        access_container::fetch_entry(&c3, &app_id, app_keys.clone()).then(
-                            move |res| {
+                        let res = access_container::fetch_entry(c3, app_id, app_keys.clone()).await;
+                        // .then(
+                            // move |res| {
                                 let version = match res {
                                     // Updating an existing entry
                                     Ok((version, Some(mut existing_perms))) => {
@@ -389,23 +391,27 @@ pub unsafe extern "C" fn encode_containers_resp(
 
                                     // Error has occurred while trying to get an
                                     // existing entry
-                                    Err(e) => return Err(e),
+                                    Err(e) => return Err(Error::from(e)),
                                 };
-                                Ok((version, app_id, app_keys, perms))
-                            },
-                        )
-                    })
-                    .and_then(move |(version, app_id, app_keys, perms)| {
-                        access_container::put_entry(&c4, &app_id, &app_keys, &perms, version)
-                    })
-                    .and_then(move |_| {
-                        let resp = encode_response(&IpcMsg::Resp {
-                            req_id,
-                            response: IpcResp::Containers(Ok(())),
-                        })?;
-                        o_cb(user_data.0, FFI_RESULT_OK, resp.as_ptr());
-                        Ok(())
-                    })
+                                // Ok((version, app_id, app_keys, perms))
+                            // },
+                        // )
+                    // })
+                    // .and_then(move |(version, app_id, app_keys, perms)| {
+                        access_container::put_entry(&c4, &app_id, &app_keys, &perms, version).await?;
+                    // })
+                    // .and_then(move |_| {
+
+                        let res: Result<(), Error> = {
+                            
+                            let resp = encode_response(&IpcMsg::Resp {
+                                req_id,
+                                response: IpcResp::Containers(Ok(())),
+                            })?;
+                            o_cb(user_data.0, FFI_RESULT_OK, resp.as_ptr());
+                            Ok(())
+                        }
+                    // })
                     .map_err(Error::from)
                     .or_else(move |e| -> Result<()> {
                         let (error_code, description) = ffi_error!(e);
@@ -421,10 +427,10 @@ pub unsafe extern "C" fn encode_containers_resp(
                         o_cb(user_data.0, &result, resp.as_ptr());
                         Ok(())
                     })
-                    .map_err(move |e| debug!("Unexpected error: {:?}", e))
-                    .into_box()
-                    .into()
-            })?;
+                    .map_err(move |e| debug!("Unexpected error: {:?}", e));
+                    // .into_box()
+                    // .into()
+            // })?;
         } else {
             let response = encode_response(&IpcMsg::Resp {
                 req_id,
@@ -440,7 +446,7 @@ pub unsafe extern "C" fn encode_containers_resp(
 
 /// Encode share mutable data response.
 #[no_mangle]
-pub unsafe extern "C" fn encode_share_mdata_resp(
+pub async unsafe extern "C" fn encode_share_mdata_resp(
     auth: *const Authenticator,
     req: *const ShareMDataRequest,
     req_id: u32,
@@ -454,54 +460,62 @@ pub unsafe extern "C" fn encode_share_mdata_resp(
         let share_mdata_req = NativeShareMDataReq::clone_from_repr_c(req)?;
 
         if is_granted {
-            (*auth).send(move |client| {
+            let client = (*auth).client;
+
+            // (*auth).send(move |client| {
                 let client_cloned0 = client.clone();
                 let client_cloned1 = client.clone();
                 let user_data = user_data.0;
 
-                config::get_app(client, &share_mdata_req.app.id)
-                    .and_then(move |app_info| {
+                // async {
+
+                    let app_info = config::get_app(&client, &share_mdata_req.app.id).await?;
+                    // .and_then(move |app_info| {
                         let user = app_info.keys.public_key();
                         let num_mdata = share_mdata_req.mdata.len();
-
+                        
                         stream::iter_ok(share_mdata_req.mdata.into_iter())
-                            .map(move |mdata| {
-                                client_cloned0
-                                    .get_seq_mdata_shell(mdata.name, mdata.type_tag)
-                                    .map(|md| (md.version(), mdata))
-                            })
-                            .buffer_unordered(num_mdata)
-                            .map(move |(version, mdata)| {
-                                client_cloned1.set_mdata_user_permissions(
-                                    MDataAddress::Seq {
-                                        name: mdata.name,
-                                        tag: mdata.type_tag,
-                                    },
-                                    user,
-                                    mdata.perms,
-                                    version + 1,
-                                )
-                            })
-                            .buffer_unordered(num_mdata)
-                            .map_err(AuthError::CoreError)
-                            .for_each(|()| Ok(()))
-                            .and_then(move |()| {
-                                let resp = encode_response(&IpcMsg::Resp {
-                                    req_id,
-                                    response: IpcResp::ShareMData(Ok(())),
+                        .map(move |mdata| {
+                            let md = client_cloned0
+                            .get_seq_mdata_shell(mdata.name, mdata.type_tag).await?;
+                            (md.version(), mdata)
+                        })
+                        .buffer_unordered(num_mdata)
+                                .map(move |(version, mdata)| {
+                                    client_cloned1.set_mdata_user_permissions(
+                                        MDataAddress::Seq {
+                                            name: mdata.name,
+                                            tag: mdata.type_tag,
+                                        },
+                                        user,
+                                        mdata.perms,
+                                        version + 1,
+                                    ).await
                                 })
-                                .map_err(AuthError::IpcError)?;
-                                o_cb(user_data, FFI_RESULT_OK, resp.as_ptr());
-                                Ok(())
-                            })
-                            .into_box()
-                    })
-                    .map_err(move |e| {
-                        call_result_cb!(Err::<(), _>(Error::from(e)), user_data, o_cb);
-                    })
-                    .into_box()
-                    .into()
-            })?;
+                                .buffer_unordered(num_mdata)
+                                .map_err(AuthError::CoreError)
+                                .for_each(|()| Ok(()))
+                                .and_then(move |()| {
+                                    let resp = encode_response(&IpcMsg::Resp {
+                                        req_id,
+                                        response: IpcResp::ShareMData(Ok(())),
+                                    })
+                                    .map_err(AuthError::IpcError)?;
+                                    o_cb(user_data, FFI_RESULT_OK, resp.as_ptr());
+                                    Ok(())
+                                })
+                                .map_err(move |e| {
+                                    call_result_cb!(Err::<(), _>(Error::from(e)), user_data, o_cb);
+                                })?    
+                                .into_box()
+                //         // })
+                // }
+                    // .map_err(move |e| {
+                    //     call_result_cb!(Err::<(), _>(Error::from(e)), user_data, o_cb);
+                    // })
+                    // .into_box()
+                    // .into()
+            // })?;
         } else {
             let resp = encode_response(&IpcMsg::Resp {
                 req_id,
