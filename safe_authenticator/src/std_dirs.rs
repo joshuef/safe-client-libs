@@ -6,19 +6,17 @@
 // KIND, either express or implied. Please review the Licences for the specific language governing
 // permissions and limitations relating to use of the SAFE Network Software.
 
-use crate::access_container::{self, AUTHENTICATOR_ENTRY};
-use crate::client::AuthClient;
-use crate::config::KEY_APPS;
-use crate::AuthError;
+use crate::{
+    access_container::{self, AUTHENTICATOR_ENTRY},
+    client::AuthClient,
+    config::KEY_APPS,
+    AuthError,
+};
 use bincode::serialize;
-
-use futures_util::future::FutureExt;
-use safe_core::btree_map;
-use safe_core::core_structs::access_container_enc_key;
-use safe_core::mdata_info;
-use safe_core::nfs::create_directory;
-use safe_core::utils::symmetric_encrypt;
-use safe_core::{Client, CoreError, MDataInfo, DIR_TAG};
+use safe_core::{
+    btree_map, core_structs::access_container_enc_key, mdata_info, nfs::create_directory,
+    utils::symmetric_encrypt, Client, CoreError, MDataInfo, DIR_TAG,
+};
 use safe_nd::{Error as SndError, MDataKind, MDataSeqValue};
 use std::collections::HashMap;
 
@@ -147,9 +145,7 @@ pub async fn create_std_dirs(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::run;
     use crate::test_utils::create_account_and_login;
-    use futures::Future;
     use unwrap::unwrap;
 
     // Test creation of default dirs.
