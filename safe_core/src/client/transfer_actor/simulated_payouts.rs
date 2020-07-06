@@ -67,8 +67,6 @@ impl TransferActor {
                     Ok(transfer_response) => {
                         // If we're getting the payout for our own actor, update it here
                         if to == self.safe_key.public_key() {
-                            println!("actual transfer reponse::: {:?}", transfer_response);
-
                             // get full history from network and apply locally
                             self.get_history().await;
                         }

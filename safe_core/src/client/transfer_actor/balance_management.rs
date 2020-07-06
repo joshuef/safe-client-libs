@@ -9,14 +9,9 @@ use crate::errors::CoreError;
 
 use log::{debug, info, trace};
 
-// #[cfg(feature = "simulated-payouts")]
-// #[cfg(feature = "simulated-payouts")]
-// #[cfg(feature = "simulated-payouts")]
 
 /// Handle all Money transfers and Write API requests for a given ClientId.
 impl TransferActor {
-    // TODO
-    // Send as vs use this need to be sorted ooooot
     /// Get the account balance without querying the network
     pub async fn get_local_balance(&self) -> Money {
         info!("Retrieving actor's local balance.");
@@ -51,7 +46,6 @@ impl TransferActor {
                     return Err(CoreError::from(error));
                 }
 
-                //a DAP should already have been returned at this point
                 return Ok(None);
             }
         };
@@ -129,6 +123,7 @@ impl TransferActor {
             "Signed transfer for send money: {:?}",
             signed_transfer.transfer
         );
+
         let request = Request::Money(MoneyRequest::ValidateTransfer { signed_transfer });
 
         let (message, _message_id) = self.create_network_message(request)?;
