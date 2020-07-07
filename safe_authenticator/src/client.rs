@@ -149,9 +149,7 @@ impl AuthClient {
         let transfer_actor = Some(the_actor.clone());
 
         // create login packet
-        let response = the_actor
-            .store_login_packet(new_login_packet)
-            .await?;
+        let response = the_actor.store_login_packet(new_login_packet).await?;
 
         match response {
             Response::Mutation(res) => res?,
@@ -546,9 +544,7 @@ mod tests {
         // w/ at2 the client fails with out of order message....
         match AuthClient::registered(&sec_0, &sec_1, client_id, net_tx).await {
             Ok(_) => panic!("Account name hijacking should fail"),
-            Err(err) => {
-                assert!(err.to_string().contains("out of order"))
-            }
+            Err(err) => assert!(err.to_string().contains("out of order")),
         }
         Ok(())
     }
@@ -741,6 +737,4 @@ mod tests {
 
         Ok(())
     }
-
-    
 }

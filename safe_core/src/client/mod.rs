@@ -267,10 +267,8 @@ pub trait Client: Clone + Send + Sync {
         let transfer_result = actor.send_money(to, amount).await?;
 
         match transfer_result {
-            Response::TransferRegistration(result) => match result {
-                Ok(transfer) => Ok(transfer),
-                Err(error) => Err(CoreError::from(error)),
-            },
+            Response::TransferRegistration(Ok(transfer)) => Ok(transfer),
+            Response::TransferRegistration(Err(error)) => Err(CoreError::from(error)),
             _ => Err(CoreError::ReceivedUnexpectedEvent),
         }
     }
@@ -297,12 +295,8 @@ pub trait Client: Clone + Send + Sync {
         let transfer_result = actor.send_money(to, amount).await?;
 
         match transfer_result {
-            // Ok(res) => match res {
-            Response::TransferRegistration(result) => match result {
-                Ok(transfer) => Ok(transfer),
-                Err(error) => Err(CoreError::from(error)),
-                // Err(error) => Err(CoreError::from(error)),
-            },
+            Response::TransferRegistration(Ok(transfer)) => Ok(transfer),
+            Response::TransferRegistration(Err(error)) => Err(CoreError::from(error)),
             _ => Err(CoreError::ReceivedUnexpectedEvent),
         }
     }
@@ -331,10 +325,8 @@ pub trait Client: Clone + Send + Sync {
         let transfer_result = actor.send_money(new_balance_owner, amount).await?;
 
         match transfer_result {
-            Response::TransferRegistration(result) => match result {
-                Ok(transfer) => Ok(transfer),
-                Err(error) => Err(CoreError::from(error)),
-            },
+            Response::TransferRegistration(Ok(transfer)) => Ok(transfer),
+            Response::TransferRegistration(Err(error)) => Err(CoreError::from(error)),
             _ => Err(CoreError::ReceivedUnexpectedEvent),
         }
     }
@@ -363,18 +355,12 @@ pub trait Client: Clone + Send + Sync {
 
         let response = actor
             .create_login_for(new_owner, amount, new_login_packet)
-            .await;
+            .await?;
 
         match response {
-            Ok(res) => match res {
-                Response::TransferRegistration(result) => match result {
-                    Ok(transfer) => Ok(transfer),
-                    Err(error) => Err(CoreError::from(error)),
-                },
-                _ => Err(CoreError::ReceivedUnexpectedEvent),
-            },
-
-            Err(error) => Err(error),
+            Response::TransferRegistration(Ok(transfer)) => Ok(transfer),
+            Response::TransferRegistration(Err(error)) => Err(CoreError::from(error)),
+            _ => Err(CoreError::ReceivedUnexpectedEvent),
         }
     }
 
@@ -2035,7 +2021,7 @@ mod tests {
             res => panic!("Unexpected result: {:?}", res),
         }
     }
-    
+
     // 1. Create a client A with a wallet and allocate some test safecoin to it.
     // 2. Get the balance and verify it.
     // 3. Create another client B with a wallet holding some safecoin.
@@ -2085,7 +2071,6 @@ mod tests {
             calculate_new_balance(init_bal, Some(1), Some(unwrap!(Money::from_str("5"))));
         assert_eq!(balance, expected);
 
-
         let client_to_get_all_money = random_client().unwrap();
         // send all our money elsewhere to make sure we fail the next put
         let _ = client
@@ -2099,7 +2084,10 @@ mod tests {
         let res = client.put_idata(data).await;
         match res {
             Err(CoreError::DataError(SndError::InsufficientBalance)) => (),
-            res => panic!("Unexpected result in money transfer test, putting without balance: {:?}", res),
+            res => panic!(
+                "Unexpected result in money transfer test, putting without balance: {:?}",
+                res
+            ),
         };
     }
 
