@@ -18,12 +18,10 @@ impl Client {
         trace!("Getting replica keys for {:?}", full_id);
 
         let keys_query_msg = Query::Transfer(TransferQuery::GetReplicaKeys(*full_id.public_key()));
-
         let message = Self::create_query_message(keys_query_msg);
 
         cm.bootstrap().await?;
         let res = cm.send_query(&message).await?;
-
         match res {
             QueryResponse::GetReplicaKeys(pk_set) => Ok(pk_set?),
             _ => Err(CoreError::from(format!(

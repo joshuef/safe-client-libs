@@ -32,15 +32,16 @@ use crate::errors::CoreError;
 
 use crdts::Dot;
 use futures::lock::Mutex;
+use log::error;
 use log::trace;
 use lru::LruCache;
 use quic_p2p::Config as QuicP2pConfig;
 use safe_nd::{
     AppPermissions, AuthQuery, Blob, BlobAddress, BlobRead, ClientFullId, Cmd, Data, DataQuery,
-    Map, MapAddress, MapEntries, MapEntryActions, MapPermissionSet, MapRead, MapSeqEntries,
+    Event, Map, MapAddress, MapEntries, MapEntryActions, MapPermissionSet, MapRead, MapSeqEntries,
     MapSeqEntryActions, MapSeqValue, MapUnseqEntryActions, MapValue, MapValues, Message, MessageId,
-    Money, PublicBlob, PublicId, PublicKey, Query, QueryResponse, SeqMap, Sequence, SequenceAction,
-    SequenceAddress, SequenceEntries, SequenceEntry, SequenceIndex, SequenceOwner,
+    Money, MsgEnvelope, PublicBlob, PublicId, PublicKey, Query, QueryResponse, SeqMap, Sequence,
+    SequenceAction, SequenceAddress, SequenceEntries, SequenceEntry, SequenceIndex, SequenceOwner,
     SequencePrivUserPermissions, SequencePrivatePermissions, SequencePubUserPermissions,
     SequencePublicPermissions, SequenceRead, SequenceUser, SequenceUserPermissions, UnseqMap,
 };
@@ -49,6 +50,7 @@ use std::sync::Arc;
 
 use xor_name::XorName;
 
+use bincode::deserialize;
 use rand::{thread_rng, Rng};
 use std::{collections::HashSet, net::SocketAddr};
 use threshold_crypto::{PublicKeySet, SecretKey};
@@ -93,7 +95,6 @@ impl Client {
             None => {
                 let mut rng = thread_rng();
 
-                //TODO: Q: should we even have different types of client full id?
                 ClientFullId::new_bls(&mut rng)
             }
         };
@@ -137,7 +138,32 @@ impl Client {
 
         full_client.get_history();
 
+        //Start listening for Events
+        full_client.listen().await;
+
         Ok(full_client)
+    }
+
+    async fn listen(&mut self) {
+        let (tx, rx) = std::sync::mpsc::channel();
+        loop {
+            self.connection_manager.listen(tx.clone()).await;
+            match rx.recv() {
+                Ok(bytes) => {
+                    let event = deserialize::<MsgEnvelope>(&bytes);
+                    match event {
+                        Ok(envelope) => match envelope.message {
+                            Message::Event { event, .. } => {
+                                let _ = self.handle_validation_event(event);
+                            }
+                            m => error!("Unexpected message found while listening: {:?}", m),
+                        },
+                        Err(e) => error!("Error deserializing message while listening: {:?}", e),
+                    }
+                }
+                Err(e) => error!("Error listening to Events from Quic-p2p: {:?}", e),
+            }
+        }
     }
 
     #[cfg(feature = "simulated-payouts")]

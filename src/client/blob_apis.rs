@@ -59,7 +59,8 @@ impl Client {
         }?;
 
         // Put to cache
-        self.blob_cache
+        let _ = self
+            .blob_cache
             .lock()
             .await
             .put(*data.address(), data.clone());
@@ -81,7 +82,6 @@ impl Client {
     /// Store a new blob object, self sncrypt and return final blob
     /// Wraps msg_contents for payment validation and mutation
     pub async fn store_blob(&mut self, data: Blob) -> Result<Blob, CoreError> {
-
         let data_to_write_to_network: Blob = self.self_encrypt_blob(data).await?;
         // --------------------------
         // Payment for PUT
@@ -126,10 +126,7 @@ impl Client {
     // --------------------------------------------
 
     // use self_encryption to generated an encrypted blob stored at the data map
-    async fn self_encrypt_blob(
-        &mut self,
-        data: Blob,
-    ) -> Result<Blob, CoreError> {
+    async fn self_encrypt_blob(&mut self, data: Blob) -> Result<Blob, CoreError> {
         let blob_storage = BlobStorageDryRun::new(self.clone(), data.is_pub());
 
         let self_encryptor = SelfEncryptor::new(blob_storage, DataMap::None)
@@ -261,7 +258,6 @@ mod tests {
     use unwrap::unwrap;
     use xor_name::XorName;
 
-    
     // Test putting and getting pub blob.
     #[tokio::test]
     async fn pub_blob_test() -> Result<(), CoreError> {

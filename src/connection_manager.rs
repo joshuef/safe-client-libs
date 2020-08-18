@@ -11,11 +11,12 @@ use bincode::{deserialize, serialize};
 use bytes::Bytes;
 use futures::{future::join_all, lock::Mutex};
 use log::{error, info, trace};
-use quic_p2p::{self, Config as QuicP2pConfig, Connection, QuicP2pAsync};
+use quic_p2p::{self, Config as QuicP2pConfig, Connection, QuicP2p, QuicP2pError};
 use safe_nd::{
-    BlsProof, ClientFullId, HandshakeRequest, HandshakeResponse, Message, MsgEnvelope, MsgSender,
-    Proof, QueryResponse,
+    BlsProof, ClientFullId, Event, HandshakeRequest, HandshakeResponse, Message, MsgEnvelope,
+    MsgSender, Proof, PublicId, QueryResponse,
 };
+use std::sync::mpsc::Sender;
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 
 /// Initialises `QuicP2p` instance which can bootstrap to the network, establish
@@ -23,7 +24,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 #[derive(Clone)]
 pub struct ConnectionManager {
     full_id: ClientFullId,
-    quic_p2p: QuicP2pAsync,
+    quic_p2p: QuicP2p,
     elders: Vec<Arc<Mutex<Connection>>>,
 }
 
@@ -31,7 +32,7 @@ impl ConnectionManager {
     /// Create a new connection manager.
     pub fn new(mut config: QuicP2pConfig, full_id: ClientFullId) -> Result<Self, CoreError> {
         config.port = Some(0); // Make sure we always use a random port for client connections.
-        let quic_p2p = QuicP2pAsync::with_config(Some(config), Default::default(), false)?;
+        let quic_p2p = QuicP2p::with_config(Some(config), Default::default(), false)?;
 
         Ok(Self {
             full_id,
@@ -111,7 +112,6 @@ impl ConnectionManager {
         // Let's await for all responses
         // TODO: await only for a majority
         let responses = join_all(tasks).await;
-
         // Let's figure out what's the value which is in the majority of responses obtained
         let mut votes_map = HashMap::<QueryResponse, usize>::default();
         let mut winner: (Option<QueryResponse>, usize) = (None, 0);
@@ -208,7 +208,7 @@ impl ConnectionManager {
             let mut quic_p2p = self.quic_p2p.clone();
             let full_id = self.full_id.clone();
             let task_handle = tokio::spawn(async move {
-                let mut conn = quic_p2p.connect_to(peer_addr).await?;
+                let mut conn = quic_p2p.connect_to(&peer_addr).await?;
                 let handshake = HandshakeRequest::Join(*full_id.public_id().public_key());
                 let msg = Bytes::from(serialize(&handshake)?);
                 let join_response = conn.send(msg).await?;
@@ -249,5 +249,28 @@ impl ConnectionManager {
 
         trace!("Connected to {} Elders.", self.elders.len());
         Ok(())
+    }
+
+    /// Listen for incoming events(messages) via IncomingConnections.
+    pub async fn listen(&mut self, tx: Sender<Bytes>) {
+        match self.quic_p2p.listen() {
+            Ok(mut incoming) => match incoming.next().await {
+                Some(mut msg) => match msg.next().await {
+                    Some(bytes) => match bytes {
+                        quic_p2p::Message::UniStream { bytes, .. } => {
+                            let _ = tx.send(bytes).unwrap();
+                        }
+                        quic_p2p::Message::BiStream { .. } => {
+                            error!("Unexpected: Incoming BiStream at Client")
+                        }
+                    },
+                    None => info!("No Incoming Messages"),
+                },
+                None => info!("No Incoming Events"),
+            },
+            Err(e) => {
+                error!("Error from Quic-p2p on listening: {:?}", e);
+            }
+        }
     }
 }
