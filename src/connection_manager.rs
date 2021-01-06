@@ -187,9 +187,9 @@ impl ConnectionManager {
         for elder in &self.elders {
             let msg_bytes_clone = msg_bytes.clone();
             let socket_addr = elder.socket_addr;
-
+            let endpoint = self.endpoint.clone();
             // Create a new stream here to not have to worry about filtering replies
-            let connection = Arc::clone(&elder.connection);
+            // let connection = Arc::clone(&elder.connection);
             let msg_id = msg.id();
 
             let pending_query_responses = self
@@ -207,8 +207,10 @@ impl ConnectionManager {
                     // How to handle an err here... ? Do we care about one?
                     // let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
 
-                    let connection = connection.lock().await;
-                    let remote_addr = connection.remote_address();
+                    // let connection = connection.lock().await;
+
+                    let (connection, _) = endpoint.lock().await.connect_to(&socket_addr).await?;
+                    // let remote_addr = connection.remote_address();
                     
                     
                     match connection.send_bi(msg_bytes_clone).await {
@@ -221,7 +223,7 @@ impl ConnectionManager {
                                 let _ = pending_query_responses
                                     .lock()
                                     .await
-                                    .insert((remote_addr, msg_id), sender);
+                                    .insert((socket_addr, msg_id), sender);
 
                                     info!("inserted listener");
                             }
@@ -237,7 +239,7 @@ impl ConnectionManager {
                                     Err(e) => Err(Error::ReceivingQuery)
                                 }
                             }
-                                ,None => Err(Error::NoTransferGenerated)
+                                ,None => Err(Error::ReceivingQuery)
                             };
 
     
