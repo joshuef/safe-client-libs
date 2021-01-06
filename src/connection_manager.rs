@@ -21,6 +21,7 @@ use std::{collections::HashMap, net::SocketAddr, sync::Arc};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
+use tokio::sync::mpsc::channel;
 
 static NUMBER_OF_RETRIES: usize = 3;
 pub static STANDARD_ELDERS_COUNT: usize = 5;
@@ -30,6 +31,7 @@ type VoteMap = HashMap<[u8; 32], (QueryResponse, usize)>;
 
 // channel for sending result of transfer validation
 type TransferValidationSender = Sender<Result<TransferValidated, Error>>;
+type QueryResponseSender = Sender<Result<QueryResponse, Error>>;
 
 #[derive(Clone)]
 struct ElderStream {
@@ -49,8 +51,9 @@ pub struct ConnectionManager {
     elders: Vec<ElderStream>,
     endpoint: Arc<Mutex<Endpoint>>,
     pending_transfer_validations: Arc<Mutex<HashMap<MessageId, TransferValidationSender>>>,
+    pending_query_responses: Arc<Mutex<HashMap<(SocketAddr, MessageId), QueryResponseSender>>>,
     notification_sender: UnboundedSender<Error>,
-    // listener_handle:  Option<JoinHandle>
+    listener_handle: Option<JoinHandle<Result<(), Error>>>
 }
 
 impl ConnectionManager {
@@ -71,7 +74,9 @@ impl ConnectionManager {
             elders: Vec::default(),
             endpoint: Arc::new(Mutex::new(endpoint)),
             pending_transfer_validations: Arc::new(Mutex::new(HashMap::default())),
+            pending_query_responses: Arc::new(Mutex::new(HashMap::default())),
             notification_sender,
+            listener_handle: None,
         })
     }
 
@@ -174,7 +179,7 @@ impl ConnectionManager {
     /// Send a Query `Message` to the network awaiting for the response.
     pub async fn send_query(&self, msg: &Message) -> Result<QueryResponse, Error> {
         info!("Sending query message {:?} w/ id: {:?}", msg, msg.id());
-        let msg_bytes = self.serialise_in_envelope(msg)?;
+        let msg_bytes = self.serialise_in_envelope(&msg.clone())?;
 
         // We send the same message to all Elders concurrently,
         // and we try to find a majority on the responses
@@ -185,6 +190,11 @@ impl ConnectionManager {
 
             // Create a new stream here to not have to worry about filtering replies
             let connection = Arc::clone(&elder.connection);
+            let msg_id = msg.id();
+
+            let pending_query_responses = self
+            .pending_query_responses
+            .clone();
 
             let task_handle = tokio::spawn(async move {
                 // Retry queries that failed for connection issues
@@ -197,23 +207,52 @@ impl ConnectionManager {
                     // How to handle an err here... ? Do we care about one?
                     // let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
 
+                    let connection = connection.lock().await;
+                    let remote_addr = connection.remote_address();
                     
-                    match connection.lock().await.send_bi(msg_bytes_clone).await {
+                    
+                    match connection.send_bi(msg_bytes_clone).await {
                         Ok(mut streams) => {
-                            // TODO here wait on a channel response insteaad of stream rtesponse...?
+                            // TODO here wait on a channel response insteaad of stream response...?
 
+                            info!("message sent sokay...................");
+                            let (sender, mut receiver) = channel::<Result<QueryResponse, Error>>(7);
+                            {
+                                let _ = pending_query_responses
+                                    .lock()
+                                    .await
+                                    .insert((remote_addr, msg_id), sender);
 
+                                    info!("inserted listener");
+                            }
+                            info!("Awaiting response in CM from our listener endpoint....");
+                            result = match receiver.recv().await {
 
-                            debug!("Waiting...");
-                            tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
-                            debug!("dont wwaiting");
-                            result = match streams.1.next().await {
-                                Ok(bytes) => Ok(bytes),
-                                Err(_error) => {
-                                    done_trying = true;
-                                    Err(Error::ReceivingQuery)
+                                Some(result) => {
+                                    debug!("IN THE RESULLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLT {:?}", result);
+                                    match result {
+                                    Ok(response) => {
+                                        Ok(response)
+                                    },
+                                    Err(e) => Err(Error::ReceivingQuery)
                                 }
                             }
+                                ,None => Err(Error::NoTransferGenerated)
+                            };
+
+    
+                            info!("returning from this... why?????????????????????????????????? {:?}", result);
+                            // info!("Pendin q length: {:?}", pending_query_responses.)
+                            // debug!("Waiting...");
+                            // tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
+                            // debug!("dont wwaiting");
+                            // result = match streams.1.next().await {
+                            //     Ok(bytes) => Ok(bytes),
+                            //     Err(_error) => {
+                            //         done_trying = true;
+                            //         Err(Error::ReceivingQuery)
+                            //     }
+                            // }
                         }
                         Err(_error) => result = Err(Error::ReceivingQuery),
                     };
@@ -232,16 +271,18 @@ impl ConnectionManager {
                     attempts += 1;
                 }
 
-                let response = result?;
+                result
+                // let response = result?;
+                // let response = result?;
 
-                match deserialize(&response) {
-                    Ok(MsgEnvelope { message, .. }) => Ok(message),
-                    Err(e) => {
-                        let err_msg = format!("Unexpected deserialisation error: {:?}", e);
-                        error!("{}", err_msg);
-                        Err(Error::from(e))
-                    }
-                }
+                // match deserialize(&response) {
+                //     Ok(MsgEnvelope { message, .. }) => Ok(message),
+                //     Err(e) => {
+                //         let err_msg = format!("Unexpected deserialisation error: {:?}", e);
+                //         error!("{}", err_msg);
+                //         Err(Error::from(e))
+                //     }
+                // }
             });
 
             tasks.push(task_handle);
@@ -273,7 +314,7 @@ impl ConnectionManager {
 
             if let Ok(res) = res {
                 match res {
-                    Ok(Message::QueryResponse { response, .. }) => {
+                    Ok(response) => {
                         trace!("QueryResponse is: {:#?}", response);
 
                         let key = tiny_keccak::sha3_256(&serialize(&response)?);
@@ -402,7 +443,7 @@ impl ConnectionManager {
         let (endpoint, conn, _incoming_messages) = self.qp2p.bootstrap().await?;
         self.endpoint = Arc::new(Mutex::new(endpoint));
 
-        let listener_handle = self.listen_on_endpoint(self.endpoint.clone()).await;
+        self.listener_handle = Some(self.listen_on_endpoint(self.endpoint.clone()).await?);
 
 
         trace!("Sending handshake request to bootstrapped node...");
@@ -595,7 +636,7 @@ impl ConnectionManager {
 
         let mut incoming = endpoint.listen();
      
-
+        let pending_queries = self.pending_query_responses.clone();
 
         // Spawn a thread for all the connections
         let handle = tokio::spawn(async move {
@@ -616,7 +657,9 @@ impl ConnectionManager {
                     let (mut bytes, mut send, mut recv) = if let Qp2pMessage::BiStream {
                         bytes, send, recv, ..
                     } = message
-                    {
+                    {   
+                        info!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
+                        // pending_queries.lock().await.remove()
                         (bytes, send, recv)
                     } else {
                         error!("Only bidirectional streams are supported in this example");
