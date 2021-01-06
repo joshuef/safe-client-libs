@@ -14,7 +14,7 @@ use futures::{
     lock::Mutex,
 };
 use log::{debug, error, info, trace, warn};
-use qp2p::{self, Config as QuicP2pConfig, Connection, Endpoint, QuicP2p, RecvStream, SendStream};
+use qp2p::{self, Config as QuicP2pConfig, Connection, Endpoint, QuicP2p, RecvStream, SendStream, Message as Qp2pMessage};
 use sn_data_types::{HandshakeRequest, HandshakeResponse, Keypair, TransferValidated};
 use sn_messaging::{Event, Message, MessageId, MsgEnvelope, MsgSender, QueryResponse};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -50,6 +50,7 @@ pub struct ConnectionManager {
     endpoint: Arc<Mutex<Endpoint>>,
     pending_transfer_validations: Arc<Mutex<HashMap<MessageId, TransferValidationSender>>>,
     notification_sender: UnboundedSender<Error>,
+    // listener_handle:  Option<JoinHandle>
 }
 
 impl ConnectionManager {
@@ -62,7 +63,8 @@ impl ConnectionManager {
         config.port = Some(0); // Make sure we always use a random port for client connections.
         let qp2p = QuicP2p::with_config(Some(config), Default::default(), false)?;
         let endpoint = qp2p.new_endpoint()?;
-
+  
+        
         Ok(Self {
             keypair,
             qp2p,
@@ -79,6 +81,10 @@ impl ConnectionManager {
             "Trying to bootstrap to the network with public_key: {:?}",
             self.keypair.public_key()
         );
+
+   
+
+
 
         // Bootstrap and send a handshake request to receive
         // the list of Elders we can then connect to
@@ -188,8 +194,19 @@ impl ConnectionManager {
                 while !done_trying {
                     let msg_bytes_clone = msg_bytes_clone.clone();
 
+                    // How to handle an err here... ? Do we care about one?
+                    // let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
+
+                    
                     match connection.lock().await.send_bi(msg_bytes_clone).await {
                         Ok(mut streams) => {
+                            // TODO here wait on a channel response insteaad of stream rtesponse...?
+
+
+
+                            debug!("Waiting...");
+                            tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
+                            debug!("dont wwaiting");
                             result = match streams.1.next().await {
                                 Ok(bytes) => Ok(bytes),
                                 Err(_error) => {
@@ -385,11 +402,20 @@ impl ConnectionManager {
         let (endpoint, conn, _incoming_messages) = self.qp2p.bootstrap().await?;
         self.endpoint = Arc::new(Mutex::new(endpoint));
 
+        let listener_handle = self.listen_on_endpoint(self.endpoint.clone()).await;
+
+
         trace!("Sending handshake request to bootstrapped node...");
         let public_key = self.keypair.public_key();
         let handshake = HandshakeRequest::Bootstrap(public_key);
         let msg = Bytes::from(serialize(&handshake)?);
         let mut streams = conn.send_bi(msg).await?;
+
+        // debug!("Waiting...");
+        // tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
+        // debug!("dont wwaiting");
+
+        
         let response = streams.1.next().await?;
 
         match deserialize(&response) {
@@ -428,7 +454,11 @@ impl ConnectionManager {
         ),
         Error,
     > {
-        let (connection, _incoming_messages) = endpoint.lock().await.connect_to(&peer_addr).await?;
+        let endpoint = endpoint.lock().await;
+
+        info!("....................ELDER CONNECTION ENDPOINT ISSS {:?}", endpoint.socket_addr().await);
+
+        let (connection, _incoming_messages) = endpoint.connect_to(&peer_addr).await?;
 
         let handshake = HandshakeRequest::Join(keypair.public_key());
         let msg = Bytes::from(serialize(&handshake)?);
@@ -511,6 +541,7 @@ impl ConnectionManager {
 
                 if let Ok((send_stream, connection, recv_stream, socket_addr)) = res {
                     info!("Connected to elder: {:?}", socket_addr);
+                    
                     let listener = self.listen_to_receive_stream(recv_stream).await?;
                     // We can now keep this connections in our instance
                     self.elders.push(ElderStream {
@@ -539,6 +570,70 @@ impl ConnectionManager {
 
         trace!("Connected to {} Elders.", self.elders.len());
         Ok(())
+    }
+
+     /// Listen for incoming messages on a connection
+     pub async fn listen_on_endpoint(
+        &self,
+        endpoint: Arc<Mutex<Endpoint>>,
+    ) -> Result<NetworkListenerHandle, Error> {
+        trace!("Adding endpoint listener");
+
+        
+
+        let pending_transfer_validations = Arc::clone(&self.pending_transfer_validations);
+        let notifier = self.notification_sender.clone();
+        
+        // this never ends... sooooo what?
+        let endpoint = endpoint.lock().await;
+
+        let socket = endpoint.socket_addr().await;
+
+        debug!("_________________________________________ CLIENT SOCKET ISSSS: {:?}", socket);
+
+
+
+        let mut incoming = endpoint.listen();
+     
+
+
+        // Spawn a thread for all the connections
+        let handle = tokio::spawn(async move {
+            info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Listening for incoming connections via endpoint");
+
+
+            // this is recv stream used to send challenge response. Send
+            while let Some(mut messages) = incoming.next().await {
+                let connecting_peer = messages.remote_addr();
+                
+                trace!("*****************************************Listener message received from {:?}", connecting_peer);
+
+                while  let Some(message) = messages
+                .next()
+                .await {
+
+                    println!("::::::::::::::::::::::::::::::::::::::::::::Waiting for messages...");
+                    let (mut bytes, mut send, mut recv) = if let Qp2pMessage::BiStream {
+                        bytes, send, recv, ..
+                    } = message
+                    {
+                        (bytes, send, recv)
+                    } else {
+                        error!("Only bidirectional streams are supported in this example");
+                        panic!("only bistrem plz");
+                        // bail!("Only bidirectional streams are supported in this example");
+                    };
+                }
+
+
+            }
+
+            info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Elder listener stopped.");
+
+            Ok::<(), Error>(())
+        });
+
+        Ok(handle)
     }
 
     /// Listen for incoming messages via IncomingConnections.
