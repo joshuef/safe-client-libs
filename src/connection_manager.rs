@@ -53,7 +53,7 @@ pub struct ConnectionManager {
     pending_transfer_validations: Arc<Mutex<HashMap<MessageId, TransferValidationSender>>>,
     pending_query_responses: Arc<Mutex<HashMap<(SocketAddr, MessageId), QueryResponseSender>>>,
     notification_sender: UnboundedSender<Error>,
-    listener_handle: Option<JoinHandle<Result<(), Error>>>
+    // listener_handle: Option<JoinHandle<Result<(), Error>>>
 }
 
 impl ConnectionManager {
@@ -76,7 +76,7 @@ impl ConnectionManager {
             pending_transfer_validations: Arc::new(Mutex::new(HashMap::default())),
             pending_query_responses: Arc::new(Mutex::new(HashMap::default())),
             notification_sender,
-            listener_handle: None,
+            // listener_handle: None,
         })
     }
 
@@ -100,7 +100,7 @@ impl ConnectionManager {
 
         // And finally set up listeneres on these established connections
         // to monitor incoming messags and route them appropriately
-        // self.listener_handle = Some(self.listen_on_endpoint(self.endpoint.clone()).await?);
+        // self.listener_handle = Some(self.listen_to_incoming_messages(self.endpoint.clone()).await?);
         
         Ok(())
     }
@@ -451,7 +451,7 @@ impl ConnectionManager {
         let (endpoint, conn, incoming_messages) = self.qp2p.bootstrap().await?;
         self.endpoint = Arc::new(Mutex::new(endpoint));
 
-        self.listener_handle = Some(self.listen_on_endpoint(incoming_messages).await?);
+        // self.listener_handle = Some(self.listen_to_incoming_messages(incoming_messages).await?);
 
 
         trace!("Sending handshake request to bootstrapped node...");
@@ -498,7 +498,7 @@ impl ConnectionManager {
         (
             Arc<Mutex<SendStream>>,
             Arc<Mutex<Connection>>,
-            RecvStream,
+            IncomingMessages,
             SocketAddr,
         ),
         Error,
@@ -507,7 +507,10 @@ impl ConnectionManager {
 
         info!("....................ELDER CONNECTION ENDPOINT ISSS {:?}", endpoint.socket_addr().await);
 
-        let (connection, _incoming_messages) = endpoint.connect_to(&peer_addr).await?;
+        let (connection, incoming_messages) = endpoint.connect_to(&peer_addr).await?;
+
+        let incoming = incoming_messages.ok_or_else(|| Error::NoElderListenerEstablished)?;
+
 
         let handshake = HandshakeRequest::Join(keypair.public_key());
         let msg = Bytes::from(serialize(&handshake)?);
@@ -515,7 +518,7 @@ impl ConnectionManager {
         Ok((
             Arc::new(Mutex::new(send_stream)),
             Arc::new(Mutex::new(connection)),
-            recv_stream,
+            incoming,
             peer_addr,
         ))
     }
@@ -588,10 +591,12 @@ impl ConnectionManager {
                     warn!("Failed to connect to Elder @ : {}", err);
                 });
 
-                if let Ok((send_stream, connection, recv_stream, socket_addr)) = res {
+                if let Ok((send_stream, connection, incoming_messages, socket_addr)) = res {
                     info!("Connected to elder: {:?}", socket_addr);
                     
-                    let listener = self.listen_to_receive_stream(recv_stream).await?;
+                    let listener = self.listen_to_incoming_messages(incoming_messages).await?;
+
+                    // let listener = self.listen_to_receive_stream(recv_stream).await?;
                     // We can now keep this connections in our instance
                     self.elders.push(ElderStream {
                         send_stream,
@@ -622,104 +627,97 @@ impl ConnectionManager {
     }
 
      /// Listen for incoming messages on a connection
-     pub async fn listen_on_endpoint(
+     pub async fn listen_to_incoming_messages(
         &self,
         mut incoming_messages: IncomingMessages,
-        // endpoint: Arc<Mutex<Endpoint>>,
     ) -> Result<NetworkListenerHandle, Error> {
         trace!("Adding endpoint listener");
 
-        
 
         let pending_transfer_validations = Arc::clone(&self.pending_transfer_validations);
         let notifier = self.notification_sender.clone();
         
-        // this never ends... sooooo what?
-        // let endpoint = endpoint.lock().await;
-
-        // let socket = endpoint.socket_addr().await;
-
-        // debug!("_________________________________________ CLIENT SOCKET ISSSS: {:?}", socket);
-
-
-
-        
         let pending_queries = self.pending_query_responses.clone();
-        // let mut incoming = endpoint.listen();
-
-        // loop {
-        //     incoming = endpoint.listen();
-        // }
 
         // Spawn a thread for all the connections
         let handle = tokio::spawn(async move {
             info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Listening for incoming connections via endpoint");
 
 
+
             // this is recv stream used to send challenge response. Send
             while let Some(mut message ) = incoming_messages.next().await {
                 // let connecting_peer = messages.remote_addr();
-                
+
                 // trace!("*****************************************Listener message received from {:?}", connecting_peer);
 
                 // while  let Some(message) = messages
                 // .next()
                 // .await {
 
-                    println!("::::::::::::::::::::::::::::::::::::::::::::Waiting for messages...");
-                    let _ = if let Qp2pMessage::BiStream {
-                        bytes, send, recv, ..
-                    } = message
-                    {   
-                        info!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
-                        // pending_queries.lock().await.remove()
-                        // (bytes, send, recv)
-                        // Ok(())
-
-                        panic!("asss")
-                    } else {
-                        error!("Only bidirectional streams are supported in this example {:?}", message);
-                        // panic!("only bistrem plz");
-
-                        let (mut bytes, mut recv) = if let Qp2pMessage::UniStream {
-                            bytes, recv, ..
-                        } = message {
-
-                            match deserialize::<MsgEnvelope>(&bytes) {
-                                // Message::Event {
-                                //     event,
-                                //     correlation_id, 
-                                //     ..
-                                // },
-                                msg => {
-                                    error!("MEssage was receivedd...... {:?}", msg)
+                match message {
+                    Qp2pMessage::BiStream{ bytes, ..} | Qp2pMessage::UniStream { bytes, ..} => {
+                        
+                        match deserialize::<MsgEnvelope>(&bytes) {
+                            Ok(envelope) => {
+                                debug!("Message received at listener: {:?}", &envelope.message);
+                                match envelope.message.clone() {
+                                    Message::Event {
+                                        event,
+                                        correlation_id,
+                                        ..
+                                    } => {
+                                        if let Event::TransferValidated { event, .. } = event {
+                                            if let Some(sender) = pending_transfer_validations
+                                                .lock()
+                                                .await
+                                                .get_mut(&correlation_id)
+                                            {
+                                                info!("Accumulating SignatureShare");
+                                                let _ = sender.send(Ok(event)).await;
+                                            }
+                                        }
+                                    }
+                                    Message::CmdError {
+                                        error,
+                                        correlation_id,
+                                        ..
+                                    } => {
+                                        if let Some(sender) = pending_transfer_validations
+                                            .lock()
+                                            .await
+                                            .get_mut(&correlation_id)
+                                        {
+                                            debug!("Cmd Error was received, sending on channel to caller");
+                                            let _ = sender.send(Err(Error::from(error.clone()))).await;
+                                        };
+    
+                                        let _ = notifier.send(Error::from(error));
+                                    }
+                                    msg => {
+                                        warn!("another message type received {:?}", msg);
+                                    }
                                 }
                             }
+                            Err(_error) => {
+                                error!("Could not deserialise MessageEnvelope");
+                            }
+                            // Message::Event {
+                            //     event,
+                            //     correlation_id, 
+                            //     ..
+                            // },
+                            // msg => {
+                            //     error!("MEssage was receivedd...... {:?}", msg)
+                            // }
 
-                            (bytes, recv)
-
-                            // Ok(())
-
+                           
                         }
-                        else{
-                            // Ok(())
-                            panic!("nblaaa")
-                            // (bytes, recv)
-
-                        };
-
-
-
-
-
-
-                        // bail!("Only bidirectional streams are supported in this example");
-                    };
+                    }
                 }
 
-
-            // }
-
+                
+            }
             info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Elder listener stopped.");
 
             Ok::<(), Error>(())
