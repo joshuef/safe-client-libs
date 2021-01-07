@@ -14,7 +14,7 @@ use futures::{
     lock::Mutex,
 };
 use log::{debug, error, info, trace, warn};
-use qp2p::{self, Config as QuicP2pConfig, Connection, Endpoint, QuicP2p, RecvStream, SendStream, Message as Qp2pMessage};
+use qp2p::{self, Config as QuicP2pConfig, Connection, Endpoint, IncomingMessages, Message as Qp2pMessage, QuicP2p, RecvStream, SendStream};
 use sn_data_types::{HandshakeRequest, HandshakeResponse, Keypair, TransferValidated};
 use sn_messaging::{Event, Message, MessageId, MsgEnvelope, MsgSender, QueryResponse};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
@@ -96,7 +96,13 @@ impl ConnectionManager {
         let elders_addrs = self.bootstrap_and_handshake().await?;
 
         // Let's now connect to all Elders
-        self.connect_to_elders(elders_addrs).await
+        self.connect_to_elders(elders_addrs).await?;
+
+        // And finally set up listeneres on these established connections
+        // to monitor incoming messags and route them appropriately
+        // self.listener_handle = Some(self.listen_on_endpoint(self.endpoint.clone()).await?);
+        
+        Ok(())
     }
 
     /// Send a `Message` to the network without awaiting for a response.
@@ -442,10 +448,10 @@ impl ConnectionManager {
     // nodes we should establish connections with
     async fn bootstrap_and_handshake(&mut self) -> Result<Vec<SocketAddr>, Error> {
         trace!("Bootstrapping with contacts...");
-        let (endpoint, conn, _incoming_messages) = self.qp2p.bootstrap().await?;
+        let (endpoint, conn, incoming_messages) = self.qp2p.bootstrap().await?;
         self.endpoint = Arc::new(Mutex::new(endpoint));
 
-        self.listener_handle = Some(self.listen_on_endpoint(self.endpoint.clone()).await?);
+        self.listener_handle = Some(self.listen_on_endpoint(incoming_messages).await?);
 
 
         trace!("Sending handshake request to bootstrapped node...");
@@ -618,7 +624,8 @@ impl ConnectionManager {
      /// Listen for incoming messages on a connection
      pub async fn listen_on_endpoint(
         &self,
-        endpoint: Arc<Mutex<Endpoint>>,
+        mut incoming_messages: IncomingMessages,
+        // endpoint: Arc<Mutex<Endpoint>>,
     ) -> Result<NetworkListenerHandle, Error> {
         trace!("Adding endpoint listener");
 
@@ -628,17 +635,21 @@ impl ConnectionManager {
         let notifier = self.notification_sender.clone();
         
         // this never ends... sooooo what?
-        let endpoint = endpoint.lock().await;
+        // let endpoint = endpoint.lock().await;
 
-        let socket = endpoint.socket_addr().await;
+        // let socket = endpoint.socket_addr().await;
 
-        debug!("_________________________________________ CLIENT SOCKET ISSSS: {:?}", socket);
+        // debug!("_________________________________________ CLIENT SOCKET ISSSS: {:?}", socket);
 
 
 
-        let mut incoming = endpoint.listen();
-     
+        
         let pending_queries = self.pending_query_responses.clone();
+        // let mut incoming = endpoint.listen();
+
+        // loop {
+        //     incoming = endpoint.listen();
+        // }
 
         // Spawn a thread for all the connections
         let handle = tokio::spawn(async move {
@@ -646,32 +657,68 @@ impl ConnectionManager {
 
 
             // this is recv stream used to send challenge response. Send
-            while let Some(mut messages) = incoming.next().await {
-                let connecting_peer = messages.remote_addr();
+            while let Some(mut message ) = incoming_messages.next().await {
+                // let connecting_peer = messages.remote_addr();
                 
-                trace!("*****************************************Listener message received from {:?}", connecting_peer);
+                // trace!("*****************************************Listener message received from {:?}", connecting_peer);
 
-                while  let Some(message) = messages
-                .next()
-                .await {
+                // while  let Some(message) = messages
+                // .next()
+                // .await {
 
                     println!("::::::::::::::::::::::::::::::::::::::::::::Waiting for messages...");
-                    let (mut bytes, mut send, mut recv) = if let Qp2pMessage::BiStream {
+                    let _ = if let Qp2pMessage::BiStream {
                         bytes, send, recv, ..
                     } = message
                     {   
                         info!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%");
                         // pending_queries.lock().await.remove()
-                        (bytes, send, recv)
+                        // (bytes, send, recv)
+                        // Ok(())
+
+                        panic!("asss")
                     } else {
-                        error!("Only bidirectional streams are supported in this example");
-                        panic!("only bistrem plz");
+                        error!("Only bidirectional streams are supported in this example {:?}", message);
+                        // panic!("only bistrem plz");
+
+                        let (mut bytes, mut recv) = if let Qp2pMessage::UniStream {
+                            bytes, recv, ..
+                        } = message {
+
+                            match deserialize::<MsgEnvelope>(&bytes) {
+                                // Message::Event {
+                                //     event,
+                                //     correlation_id, 
+                                //     ..
+                                // },
+                                msg => {
+                                    error!("MEssage was receivedd...... {:?}", msg)
+                                }
+                            }
+
+                            (bytes, recv)
+
+                            // Ok(())
+
+                        }
+                        else{
+                            // Ok(())
+                            panic!("nblaaa")
+                            // (bytes, recv)
+
+                        };
+
+
+
+
+
+
                         // bail!("Only bidirectional streams are supported in this example");
                     };
                 }
 
 
-            }
+            // }
 
             info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Elder listener stopped.");
 
@@ -696,7 +743,7 @@ impl ConnectionManager {
 
         // Spawn a thread for all the connections
         let handle = tokio::spawn(async move {
-            info!("Listening for incoming connections started");
+            info!("Listening for incoming stream messages started");
 
             // this is recv stream used to send challenge response. Send
             while let Ok(bytes) = receiver.next().await {
