@@ -678,6 +678,9 @@ impl ConnectionManager {
             Ok::<(), Error>(())
         });
 
+
+        warn!(">>>>>>>>>>>>>>>>>>>> Endpoint listener thread setup ");
+
         Ok(handle)
     }
 
