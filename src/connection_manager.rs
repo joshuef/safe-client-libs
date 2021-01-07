@@ -14,14 +14,17 @@ use futures::{
     lock::Mutex,
 };
 use log::{debug, error, info, trace, warn};
-use qp2p::{self, Config as QuicP2pConfig, Connection, Endpoint, IncomingMessages, Message as Qp2pMessage, QuicP2p, RecvStream, SendStream};
+use qp2p::{
+    self, Config as QuicP2pConfig, Connection, Endpoint, IncomingMessages, Message as Qp2pMessage,
+    QuicP2p, RecvStream, SendStream,
+};
 use sn_data_types::{HandshakeRequest, HandshakeResponse, Keypair, TransferValidated};
 use sn_messaging::{Event, Message, MessageId, MsgEnvelope, MsgSender, QueryResponse};
 use std::{collections::HashMap, net::SocketAddr, sync::Arc};
+use tokio::sync::mpsc::channel;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::task::JoinHandle;
-use tokio::sync::mpsc::channel;
 
 static NUMBER_OF_RETRIES: usize = 3;
 pub static STANDARD_ELDERS_COUNT: usize = 5;
@@ -53,7 +56,6 @@ pub struct ConnectionManager {
     pending_transfer_validations: Arc<Mutex<HashMap<MessageId, TransferValidationSender>>>,
     pending_query_responses: Arc<Mutex<HashMap<(SocketAddr, MessageId), QueryResponseSender>>>,
     notification_sender: UnboundedSender<Error>,
-    // listener_handle: Option<JoinHandle<Result<(), Error>>>
 }
 
 impl ConnectionManager {
@@ -66,8 +68,7 @@ impl ConnectionManager {
         config.port = Some(0); // Make sure we always use a random port for client connections.
         let qp2p = QuicP2p::with_config(Some(config), Default::default(), false)?;
         let endpoint = qp2p.new_endpoint()?;
-  
-        
+
         Ok(Self {
             keypair,
             qp2p,
@@ -76,7 +77,6 @@ impl ConnectionManager {
             pending_transfer_validations: Arc::new(Mutex::new(HashMap::default())),
             pending_query_responses: Arc::new(Mutex::new(HashMap::default())),
             notification_sender,
-            // listener_handle: None,
         })
     }
 
@@ -87,10 +87,6 @@ impl ConnectionManager {
             self.keypair.public_key()
         );
 
-   
-
-
-
         // Bootstrap and send a handshake request to receive
         // the list of Elders we can then connect to
         let elders_addrs = self.bootstrap_and_handshake().await?;
@@ -98,10 +94,6 @@ impl ConnectionManager {
         // Let's now connect to all Elders
         self.connect_to_elders(elders_addrs).await?;
 
-        // And finally set up listeneres on these established connections
-        // to monitor incoming messags and route them appropriately
-        // self.listener_handle = Some(self.listen_to_incoming_messages(self.endpoint.clone()).await?);
-        
         Ok(())
     }
 
@@ -134,9 +126,6 @@ impl ConnectionManager {
         if failures > 0 {
             error!("Sending the message to {} Elders failed", failures);
         }
-
-        // TODO: return an error if we didn't successfully
-        // send it to at least a majority of Elders??
 
         Ok(())
     }
@@ -198,9 +187,7 @@ impl ConnectionManager {
             // let connection = Arc::clone(&elder.connection);
             let msg_id = msg.id();
 
-            let pending_query_responses = self
-            .pending_query_responses
-            .clone();
+            let pending_query_responses = self.pending_query_responses.clone();
 
             let task_handle = tokio::spawn(async move {
                 // Retry queries that failed for connection issues
@@ -210,15 +197,8 @@ impl ConnectionManager {
                 while !done_trying {
                     let msg_bytes_clone = msg_bytes_clone.clone();
 
-                    // How to handle an err here... ? Do we care about one?
-                    // let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
-
-                    // let connection = connection.lock().await;
-
                     let (connection, _) = endpoint.lock().await.connect_to(&socket_addr).await?;
-                    // let remote_addr = connection.remote_address();
-                    
-                    
+
                     match connection.send_bi(msg_bytes_clone).await {
                         Ok(mut streams) => {
                             // TODO here wait on a channel response insteaad of stream response...?
@@ -231,36 +211,21 @@ impl ConnectionManager {
                                     .await
                                     .insert((socket_addr, msg_id), sender);
 
-                                    info!("inserted listener");
+                                info!("inserted listener");
                             }
                             info!("Awaiting response in CM from our listener endpoint....");
-                            result = match receiver.recv().await {
 
+                            // TODO: receive response here.
+                            result = match receiver.recv().await {
                                 Some(result) => {
                                     debug!("IN THE RESULLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLLT {:?}", result);
                                     match result {
-                                    Ok(response) => {
-                                        Ok(response)
-                                    },
-                                    Err(e) => Err(Error::ReceivingQuery)
+                                        Ok(response) => Ok(response),
+                                        Err(e) => Err(Error::ReceivingQuery),
+                                    }
                                 }
-                            }
-                                ,None => Err(Error::ReceivingQuery)
+                                None => Err(Error::ReceivingQuery),
                             };
-
-    
-                            info!("returning from this... why?????????????????????????????????? {:?}", result);
-                            // info!("Pendin q length: {:?}", pending_query_responses.)
-                            // debug!("Waiting...");
-                            // tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
-                            // debug!("dont wwaiting");
-                            // result = match streams.1.next().await {
-                            //     Ok(bytes) => Ok(bytes),
-                            //     Err(_error) => {
-                            //         done_trying = true;
-                            //         Err(Error::ReceivingQuery)
-                            //     }
-                            // }
                         }
                         Err(_error) => result = Err(Error::ReceivingQuery),
                     };
@@ -280,17 +245,6 @@ impl ConnectionManager {
                 }
 
                 result
-                // let response = result?;
-                // let response = result?;
-
-                // match deserialize(&response) {
-                //     Ok(MsgEnvelope { message, .. }) => Ok(message),
-                //     Err(e) => {
-                //         let err_msg = format!("Unexpected deserialisation error: {:?}", e);
-                //         error!("{}", err_msg);
-                //         Err(Error::from(e))
-                //     }
-                // }
             });
 
             tasks.push(task_handle);
@@ -451,20 +405,12 @@ impl ConnectionManager {
         let (endpoint, conn, incoming_messages) = self.qp2p.bootstrap().await?;
         self.endpoint = Arc::new(Mutex::new(endpoint));
 
-        // self.listener_handle = Some(self.listen_to_incoming_messages(incoming_messages).await?);
-
-
         trace!("Sending handshake request to bootstrapped node...");
         let public_key = self.keypair.public_key();
         let handshake = HandshakeRequest::Bootstrap(public_key);
         let msg = Bytes::from(serialize(&handshake)?);
         let mut streams = conn.send_bi(msg).await?;
 
-        // debug!("Waiting...");
-        // tokio::time::delay_for(tokio::time::Duration::from_secs(20)).await;
-        // debug!("dont wwaiting");
-
-        
         let response = streams.1.next().await?;
 
         match deserialize(&response) {
@@ -505,12 +451,14 @@ impl ConnectionManager {
     > {
         let endpoint = endpoint.lock().await;
 
-        info!("....................ELDER CONNECTION ENDPOINT ISSS {:?}", endpoint.socket_addr().await);
+        info!(
+            "....................ELDER CONNECTION ENDPOINT ISSS {:?}",
+            endpoint.socket_addr().await
+        );
 
         let (connection, incoming_messages) = endpoint.connect_to(&peer_addr).await?;
 
         let incoming = incoming_messages.ok_or_else(|| Error::NoElderListenerEstablished)?;
-
 
         let handshake = HandshakeRequest::Join(keypair.public_key());
         let msg = Bytes::from(serialize(&handshake)?);
@@ -593,7 +541,7 @@ impl ConnectionManager {
 
                 if let Ok((send_stream, connection, incoming_messages, socket_addr)) = res {
                     info!("Connected to elder: {:?}", socket_addr);
-                    
+
                     let listener = self.listen_to_incoming_messages(incoming_messages).await?;
 
                     // let listener = self.listen_to_receive_stream(recv_stream).await?;
@@ -626,38 +574,28 @@ impl ConnectionManager {
         Ok(())
     }
 
-     /// Listen for incoming messages on a connection
-     pub async fn listen_to_incoming_messages(
+    /// Listen for incoming messages on a connection
+    pub async fn listen_to_incoming_messages(
         &self,
         mut incoming_messages: IncomingMessages,
     ) -> Result<NetworkListenerHandle, Error> {
         trace!("Adding endpoint listener");
 
-
         let pending_transfer_validations = Arc::clone(&self.pending_transfer_validations);
         let notifier = self.notification_sender.clone();
-        
+
         let pending_queries = self.pending_query_responses.clone();
 
         // Spawn a thread for all the connections
         let handle = tokio::spawn(async move {
-            info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Listening for incoming connections via endpoint");
-
-
+            info!(
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Listening for incoming connections via endpoint"
+            );
 
             // this is recv stream used to send challenge response. Send
-            while let Some(mut message ) = incoming_messages.next().await {
-                // let connecting_peer = messages.remote_addr();
-
-                // trace!("*****************************************Listener message received from {:?}", connecting_peer);
-
-                // while  let Some(message) = messages
-                // .next()
-                // .await {
-
+            while let Some(mut message) = incoming_messages.next().await {
                 match message {
-                    Qp2pMessage::BiStream{ bytes, ..} | Qp2pMessage::UniStream { bytes, ..} => {
-                        
+                    Qp2pMessage::BiStream { bytes, .. } | Qp2pMessage::UniStream { bytes, .. } => {
                         match deserialize::<MsgEnvelope>(&bytes) {
                             Ok(envelope) => {
                                 debug!("Message received at listener: {:?}", &envelope.message);
@@ -689,9 +627,10 @@ impl ConnectionManager {
                                             .get_mut(&correlation_id)
                                         {
                                             debug!("Cmd Error was received, sending on channel to caller");
-                                            let _ = sender.send(Err(Error::from(error.clone()))).await;
+                                            let _ =
+                                                sender.send(Err(Error::from(error.clone()))).await;
                                         };
-    
+
                                         let _ = notifier.send(Error::from(error));
                                     }
                                     msg => {
@@ -702,101 +641,18 @@ impl ConnectionManager {
                             Err(_error) => {
                                 error!("Could not deserialise MessageEnvelope");
                             }
-                            // Message::Event {
-                            //     event,
-                            //     correlation_id, 
-                            //     ..
-                            // },
-                            // msg => {
-                            //     error!("MEssage was receivedd...... {:?}", msg)
-                            // }
-
-                           
                         }
                     }
                 }
-
-                
             }
-            info!("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Elder listener stopped.");
+            info!(
+                "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Elder listener stopped."
+            );
 
             Ok::<(), Error>(())
         });
-
 
         warn!(">>>>>>>>>>>>>>>>>>>> Endpoint listener thread setup ");
-
-        Ok(handle)
-    }
-
-    /// Listen for incoming messages via IncomingConnections.
-    pub async fn listen_to_receive_stream(
-        &self,
-        mut receiver: RecvStream,
-    ) -> Result<NetworkListenerHandle, Error> {
-        trace!("Adding listener");
-
-        let pending_transfer_validations = Arc::clone(&self.pending_transfer_validations);
-        let notifier = self.notification_sender.clone();
-
-        // Spawn a thread for all the connections
-        let handle = tokio::spawn(async move {
-            info!("Listening for incoming stream messages started");
-
-            // this is recv stream used to send challenge response. Send
-            while let Ok(bytes) = receiver.next().await {
-                trace!("Listener message received");
-
-                match deserialize::<MsgEnvelope>(&bytes) {
-                    Ok(envelope) => {
-                        debug!("Message received at listener: {:?}", &envelope.message);
-
-                        match envelope.message.clone() {
-                            Message::Event {
-                                event,
-                                correlation_id,
-                                ..
-                            } => {
-                                if let Event::TransferValidated { event, .. } = event {
-                                    if let Some(sender) = pending_transfer_validations
-                                        .lock()
-                                        .await
-                                        .get_mut(&correlation_id)
-                                    {
-                                        info!("Accumulating SignatureShare");
-                                        let _ = sender.send(Ok(event)).await;
-                                    }
-                                }
-                            }
-                            Message::CmdError {
-                                error,
-                                correlation_id,
-                                ..
-                            } => {
-                                if let Some(sender) = pending_transfer_validations
-                                    .lock()
-                                    .await
-                                    .get_mut(&correlation_id)
-                                {
-                                    debug!("Cmd Error was received, sending on channel to caller");
-                                    let _ = sender.send(Err(Error::from(error.clone()))).await;
-                                };
-
-                                let _ = notifier.send(Error::from(error));
-                            }
-                            _ => {
-                                warn!("another message type received");
-                            }
-                        }
-                    }
-                    Err(_) => error!("Error deserializing network message"),
-                };
-            }
-
-            info!("Receive stream listener stopped.");
-
-            Ok::<(), Error>(())
-        });
 
         Ok(handle)
     }
