@@ -85,7 +85,10 @@ impl ConnectionManager {
 
         // Bootstrap and send a handshake request to receive
         // the list of Elders we can then connect to
-        let elders_addrs = self.bootstrap_and_handshake().await?;
+        let mut elders_addrs = self.bootstrap_and_handshake().await?;
+        let mut rng = rand::thread_rng();
+        use rand::prelude::SliceRandom;
+        elders_addrs.shuffle(&mut rng);
 
         // Let's now connect to all Elders
         self.connect_to_elders(elders_addrs).await?;
