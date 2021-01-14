@@ -9,10 +9,7 @@
 use crate::Error;
 use bincode::{deserialize, serialize};
 use bytes::Bytes;
-use futures::{
-    future::{join_all, select_all},
-    lock::Mutex,
-};
+use futures::{future::{Join, join_all, select_all}, lock::Mutex};
 use log::{debug, error, info, trace, warn};
 use qp2p::{
     self, Config as QuicP2pConfig, Connection, Endpoint, IncomingMessages, Message as Qp2pMessage,
@@ -107,11 +104,13 @@ impl ConnectionManager {
                let msg_bytes_clone = msg_bytes.clone();
                let connection = Arc::clone(&elder.connection);
                let socket = elder.socket_addr.clone();
-               let task_handle = tokio::spawn(async move {
+               let task_handle: JoinHandle<Result<(), Error>> = tokio::spawn(async move {
 
                     trace!("About to send cmd message {:?} to {:?}", msg_id, &socket);
-                    let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
+                    let _ = connection.lock().await.send_bi(msg_bytes_clone).await?;
                     trace!("Sent cmd message {:?} to {:?}", msg_id, &socket);
+
+                    Ok(())
 
                });
                tasks.push(task_handle);
@@ -172,9 +171,11 @@ impl ConnectionManager {
         for elder in &self.elders {
             let msg_bytes_clone = msg_bytes.clone();
             let connection = Arc::clone(&elder.connection);
-            let task_handle = tokio::spawn(async move {
+            let task_handle: JoinHandle<Result<(), Error>> = tokio::spawn(async move {
                 info!("Sending transfer for validation at Elder");
-                let _ = connection.lock().await.send_bi(msg_bytes_clone).await;
+                let _ = connection.lock().await.send_bi(msg_bytes_clone).await?;
+
+                Ok(())
             });
             tasks.push(task_handle);
         }
