@@ -171,33 +171,33 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
-      
+
       # Download shared script for starting a section, make it executable
       - name: Download start-local-section.sh
         run: |
           wget "https://raw.githubusercontent.com/maidsafe/QA/master/misc-scripts/start-local-section.sh"
           chmod +x start-local-section.sh
-                  
+
       # Run start-local-section.sh script to start a local section
       - name: Run start-local-section.sh
         run: ./start-local-section.sh ${{env.SN_NODE_VERSION}} ${{env.SN_CLI_VERSION}} ${{env.SN_AUTHD_VERSION}} ${{env.TEST_STARTUP_INTERVAL}}
-      
+
       # Confirm nodes are running on this VM
       - name: Check if nodes are running
         run: pgrep -a sn_node
-                  
+
       # Print connection info
       - name: Print connection info
         run: cat ~/.safe/node/node_connection_info.config
-      
+
       # Run tests.
       - name: Run the tests
-        run: cargo test --release
-      
+        run: cargo test --release --features=simulated-payouts
+
       - name: Stop the network.
         if: failure()
         run: safe node killall || true && safe auth stop || true
-      
+
       - name: Failure logs.
         if: failure()
         run: cat ~/.safe/node/baby-fleming-nodes/*/*.log
