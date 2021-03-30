@@ -1,0 +1,180 @@
+    Finished release [optimized] target(s) in 0.13s
+     Running target/release/deps/sn_client-4b61390b55e75dfb
+
+running 43 tests
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(7a3f9cf4fe19d9878325ecbd5cc724dfc7230a06b3e4ea1e072ecb785fb13c4c)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(11ec1ca6701db23d6f1795de17f27fe1b74092ec1748bc3ac6fa5aef3b58a5b7)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(01e9838f5afc7134c15c95c033ad42aa63305805f8996e5f9b3275f12c767987)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(b3a9b2cbe5ab3788b7e4e00b3389702f589343d25b1cbbc4c944ebc20f6d5aa0)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(7988698ef518c35cbc2a36cc715cce8fcd4f08df473c186cfc54fde6b716781e)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(99e5625f8275f4e18859fdc7c6989906e22b7bee1074f459899b805d2d8fec83)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(eb6f21efc702119834530a0fdcfb9d86b0caff9f5a6431c8c58428251a533eec)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.181[0m [32m INFO[0m[32mClient started for new randomly created pk: PublicKey::Ed25519(2d1bcc9fd7cacc1392dda94a13a6ddb13767a5de6bf7c75f3e7ed0cf505e3fc2)[0m
+    [2;3mat[0m src/client/mod.rs:116[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(b3a9b2cbe5ab3788b7e4e00b3389702f589343d25b1cbbc4c944ebc20f6d5aa0)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.182[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(99e5625f8275f4e18859fdc7c6989906e22b7bee1074f459899b805d2d8fec83)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(7988698ef518c35cbc2a36cc715cce8fcd4f08df473c186cfc54fde6b716781e)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mBootstrapping contacts overriden with: {127.0.0.1:12000}[0m
+    [2;3mat[0m src/config_handler.rs:50[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.182[0m [34mDEBUG[0m[34mQP2p config: Config { hard_coded_contacts: {127.0.0.1:12000}, local_port: None, local_ip: None, forward_port: false, external_port: None, external_ip: None, max_msg_size_allowed: None, idle_timeout_msec: None, keep_alive_interval_msec: None, bootstrap_cache_dir: None, upnp_lease_duration: None }[0m
+    [2;3mat[0m src/connection_manager.rs:841[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.182[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(7a3f9cf4fe19d9878325ecbd5cc724dfc7230a06b3e4ea1e072ecb785fb13c4c)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.183[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(11ec1ca6701db23d6f1795de17f27fe1b74092ec1748bc3ac6fa5aef3b58a5b7)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.183[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(eb6f21efc702119834530a0fdcfb9d86b0caff9f5a6431c8c58428251a533eec)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.183[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(01e9838f5afc7134c15c95c033ad42aa63305805f8996e5f9b3275f12c767987)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.183[0m [35mTRACE[0m[35mTrying to bootstrap to the network with public_key: PublicKey::Ed25519(2d1bcc9fd7cacc1392dda94a13a6ddb13767a5de6bf7c75f3e7ed0cf505e3fc2)[0m
+    [2;3mat[0m src/connection_manager.rs:54[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.187[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.187[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mQuerying for section info from bootstrapped node...[0m
+    [2;3mat[0m src/connection_manager.rs:406[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.186[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.187[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.187[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_permission_test
+
+  [2mMar 31 09:11:58.187[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_blob_test
+
+  [2mMar 31 09:11:58.187[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::map_apis::tests::del_unseq_map_test
+
+  [2mMar 31 09:11:58.187[0m [35mTRACE[0m[35mBootstrapping with contact... 127.0.0.1:12000[0m
+    [2;3mat[0m src/connection_manager.rs:416[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+  [2mMar 31 09:11:58.187[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::blob_apis::tests::unpub_delete_large
+
+  [2mMar 31 09:11:58.188[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::blob_apis::tests::pub_blob_test
+
+  [2mMar 31 09:11:58.188[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::map_apis::tests::del_seq_map_test
+
+  [2mMar 31 09:11:58.187[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::blob_apis::tests::blob_deletions_should_cost_put_price
+
+  [2mMar 31 09:11:58.188[0m [34mDEBUG[0m[34mAdding IncomingMessages listener[0m
+    [2;3mat[0m src/connection_manager.rs:935[2;3m [0m[2;3mon[0m client::map_apis::tests::map_can_modify_permissions_test
+
+test client::blob_apis::tests::blob_deletions_should_cost_put_price ... test client::blob_apis::tests::blob_deletions_should_cost_put_price has been running for over 60 seconds
+test client::blob_apis::tests::pub_blob_test ... test client::blob_apis::tests::pub_blob_test has been running for over 60 seconds
+test client::blob_apis::tests::unpub_blob_test ... test client::blob_apis::tests::unpub_blob_test has been running for over 60 seconds
+test client::blob_apis::tests::unpub_delete_large ... test client::blob_apis::tests::unpub_delete_large has been running for over 60 seconds
+test client::map_apis::tests::del_seq_map_test ... test client::map_apis::tests::del_seq_map_test has been running for over 60 seconds
+test client::map_apis::tests::del_unseq_map_permission_test ... test client::map_apis::tests::del_unseq_map_permission_test has been running for over 60 seconds
+test client::map_apis::tests::del_unseq_map_test ... test client::map_apis::tests::del_unseq_map_test has been running for over 60 seconds
+test client::map_apis::tests::map_can_modify_permissions_test ... test client::map_apis::tests::map_can_modify_permissions_test has been running for over 60 seconds
