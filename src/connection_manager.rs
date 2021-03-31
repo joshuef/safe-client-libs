@@ -574,11 +574,22 @@ impl Session {
             }
             SectionInfoMsg::SectionInfoUpdate(update) => {
                 let correlation_id = update.correlation_id;
-                error!("MessageId {:?} was interrupted due to infrastructure updates. This will most likely need to be sent again. Update was : {:?}", correlation_id, update);
-                if let SectionInfoError::TargetSectionInfoOutdated(info) = update.clone().error {
-                    trace!("Updated network info: ({:?})", info);
-                    self.update_session_info(&info).await?;
+                warn!("MessageId {:?} was interrupted due to infrastructure updates. This will most likely need to be sent again. Update was : {:?}", correlation_id, update);
+                 match update.clone().error {
+                    SectionInfoError::TargetSectionInfoOutdated(info) => {
+
+                        trace!("Updated network info: ({:?})", info);
+                        self.update_session_info(&info).await?;
+                    }
+                    SectionInfoError::DkgInProgress => {
+                        warn!("DKG In progress");
+
+                    }
+                    _ => {
+                        warn!("Unexpected SectionInfoUpdate, has not handled : {:?}", update.error)
+                    }
                 }
+
                 Ok(())
             }
             SectionInfoMsg::RegisterEndUserCmd { .. } | SectionInfoMsg::GetSectionQuery(_) => {
