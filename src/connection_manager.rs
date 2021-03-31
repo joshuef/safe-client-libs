@@ -22,12 +22,7 @@ use sn_messaging::{
     },
     MessageId, MessageType, WireMsg,
 };
-use std::{
-    borrow::Borrow,
-    collections::{BTreeMap, BTreeSet, HashMap},
-    net::SocketAddr,
-    sync::Arc,
-};
+use std::{borrow::Borrow, collections::{BTreeMap, BTreeSet, HashMap, VecDeque}, net::SocketAddr, sync::Arc};
 use threshold_crypto::PublicKeySet;
 use tiny_keccak::{Hasher, Sha3};
 use tokio::{
@@ -35,6 +30,7 @@ use tokio::{
     task::JoinHandle,
 };
 use xor_name::{Prefix, XorName};
+
 
 static NUMBER_OF_RETRIES: usize = 3;
 
@@ -47,6 +43,33 @@ type QueryResponseSender = Sender<Result<QueryResponse, Error>>;
 
 type PendingTransferValidations = Arc<Mutex<HashMap<MessageId, TransferValidationSender>>>;
 type PendingQueryResponses = Arc<Mutex<HashMap<(SocketAddr, MessageId), QueryResponseSender>>>;
+
+#[derive(Clone)]
+struct RecentSentMessages {
+    msgs: Arc<Mutex<VecDeque<Message>>>
+} 
+
+const RECENT_SENT_MESSAGE_CACHE_LENGTH: usize = 100;
+
+impl RecentSentMessages {
+    pub fn new() -> Self {
+        Self {
+            msgs: Arc::new(Mutex::new(VecDeque::with_capacity(100)))
+        }   
+    }
+
+    pub async fn push(&self, message: Message ) -> Result<(), Error> {
+        let mut msgs = self.msgs.lock().await;
+
+        if msgs.len() == RECENT_SENT_MESSAGE_CACHE_LENGTH {
+            let _ = msgs.pop_front();
+            msgs.push_back(message);
+        }
+
+        Ok(())
+        
+    }
+}
 
 impl Session {
     /// Bootstrap to the network maintaining connections to several nodes.
@@ -578,7 +601,7 @@ impl Session {
                  match update.clone().error {
                     SectionInfoError::TargetSectionInfoOutdated(info) => {
 
-                        trace!("Updated network info: ({:?})", info);
+                        trace!("Updated network info received. Updating session: ({:?})", info);
                         self.update_session_info(&info).await?;
                     }
                     SectionInfoError::DkgInProgress => {
