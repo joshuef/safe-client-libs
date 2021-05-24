@@ -53,7 +53,7 @@ macro_rules! retry_loop {
         loop {
             match $async_func.await {
                 Ok(val) => break val,
-                Err(_) => tokio::time::sleep(std::time::Duration::from_millis(200)).await,
+                Err(_) => tokio::time::sleep(std::time::Duration::from_millis(2000)).await,
             }
         }
     };

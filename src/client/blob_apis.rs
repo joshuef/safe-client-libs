@@ -647,6 +647,21 @@ mod tests {
     }
 
     #[tokio::test]
+    pub async fn create_and_retrieve_1mb_public() -> Result<()> {
+        let size = 1024 * 1024;
+        gen_data_then_create_and_retrieve(size, false).await?;
+
+        Ok(())
+    }
+    #[tokio::test]
+    pub async fn create_and_retrieve_2mb_public() -> Result<()> {
+        let size = 1024 * 1024 * 2;
+        gen_data_then_create_and_retrieve(size, false).await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
     pub async fn create_and_retrieve_10mb_public() -> Result<()> {
         let size = 1024 * 1024 * 10;
         gen_data_then_create_and_retrieve(size, true).await?;
@@ -695,8 +710,11 @@ mod tests {
 
         let address_before = blob.address();
 
+        println!("INITIAL READ, check we are freshhhh");
+
         // attempt to retrieve it with generated address (it should error)
         let res = client.read_blob(*address_before, None, None).await;
+
         match res {
             Err(Error::ErrorMessage {
                 source: ErrorMessage::DataNotFound(_),
@@ -708,11 +726,17 @@ mod tests {
             ),
         };
 
+        println!("STORING");
+
         let address = if public {
             client.store_public_blob(&raw_data).await?
         } else {
             client.store_private_blob(&raw_data).await?
         };
+
+        println!("sleeping");
+        tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+        println!("READ");
 
         // now that it was put to the network we should be able to retrieve it
         let fetched_data = retry_loop!(client.read_blob(address, None, None));
