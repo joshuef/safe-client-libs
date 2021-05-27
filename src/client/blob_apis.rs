@@ -734,8 +734,8 @@ mod tests {
             client.store_private_blob(&raw_data).await?
         };
 
-        println!("sleeping");
-        tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
+        // println!("sleeping");
+        // tokio::time::sleep(tokio::time::Duration::from_secs(20)).await;
         println!("READ");
 
         // now that it was put to the network we should be able to retrieve it
