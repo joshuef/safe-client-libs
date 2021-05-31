@@ -175,10 +175,18 @@ impl Client {
         let query_result = self.send_query(query).await?;
         let msg_id = query_result.msg_id;
 
-        match query_result.response {
+        let (bytes, cost_of_put, section_key) = match query_result.response {
             QueryResponse::GetStoreCost(cost) => cost.map_err(|err| Error::from((err, msg_id))),
             _ => Err(Error::UnexpectedStoreCostResponse(query_result.response)),
-        }
+        }?;
+
+        debug!("Received cost of put is: {:?}", cost_of_put);
+
+        let cost_of_put = cost_of_put.checked_add(Token::from_nano(400)).unwrap_or_else(|| cost_of_put);
+
+        debug!("Cost of put with buffer is: {:?}", cost_of_put);
+
+        Ok((bytes, cost_of_put, section_key))
     }
 
     /// Validates a transaction for paying store_cost
