@@ -24,7 +24,7 @@ use futures::lock::Mutex;
 use log::{debug, info, trace, warn};
 use rand::rngs::OsRng;
 use sn_data_types::{Keypair, PublicKey, SectionElders, Token};
-use sn_messaging::client::{Cmd, CmdError, DataCmd};
+use sn_messaging::{MessageId, client::{Cmd, CmdError, DataCmd}};
 use std::{
     path::Path,
     str::FromStr,
@@ -41,8 +41,8 @@ pub struct Client {
     keypair: Keypair,
     transfer_actor: Arc<Mutex<SafeTransferActor<Keypair>>>,
     simulated_farming_payout_dot: Dot<PublicKey>,
-    incoming_errors: Arc<Mutex<Receiver<CmdError>>>,
-    error_sender: Sender<CmdError>,
+    incoming_errors: Arc<Mutex<Receiver<(CmdError, MessageId)>>>,
+    error_sender: Sender<(CmdError, MessageId)>,
 
     session: Session,
 }
@@ -100,7 +100,7 @@ impl Client {
         qp2p_config.forward_port = true;
 
         // Incoming error notifiers
-        let (error_sender, err_receiver) = tokio::sync::broadcast::channel::<CmdError>(10);
+        let (error_sender, err_receiver) = tokio::sync::broadcast::channel::<(CmdError, MessageId)>(10);
 
         // Create the session with the network
         let mut session = Session::new(qp2p_config, error_sender.clone())?;
@@ -160,9 +160,19 @@ impl Client {
         Ok(client)
     }
 
-    /// Access the error receiver to handle CmdErrors from
-    pub fn listen_for_errors(&self) -> Receiver<CmdError> {
-        self.error_sender.subscribe()
+    /// Get the next CmdError from the network
+    pub async fn get_next_cmd_error(&self) -> Result<Error, Error> {
+        // TODO: actually just parse this straight to Error and pass into an arg's mpsc or something
+        let cmd_err = 
+            self.error_sender.subscribe()
+                .recv().await.map_err(|_| Error::TokioReceiverError)?;
+
+        Ok(Error::from(cmd_err))
+
+        // match cmd_err {
+        //     CmdError::Transfer(e)
+        // }
+
     }
 
     /// Return the client's FullId.

@@ -44,7 +44,7 @@ pub struct Session {
     qp2p: QuicP2p,
     pending_queries: PendingQueryResponses,
     pending_transfers: PendingTransferValidations,
-    incoming_err_sender: BroadcastSender<CmdError>,
+    incoming_err_sender: BroadcastSender<(CmdError, MessageId)>,
     endpoint: Option<Endpoint>,
     /// elders we've managed to connect to
     connected_elders: Arc<Mutex<BTreeMap<SocketAddr, XorName>>>,
@@ -58,7 +58,7 @@ pub struct Session {
 impl Session {
     pub fn new(
         qp2p_config: QuicP2pConfig,
-        err_sender: BroadcastSender<CmdError>,
+        err_sender: BroadcastSender<(CmdError, MessageId)>,
     ) -> Result<Self, Error> {
         debug!("QP2p config: {:?}", qp2p_config);
 
