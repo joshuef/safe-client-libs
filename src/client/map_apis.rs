@@ -865,7 +865,7 @@ mod tests {
         client.delete_map(mapref).await?;
 
         match client.expect_cmd_error().await {
-            Some(sn_messaging::client::CmdError::Data(
+            Ok(sn_messaging::client::CmdError::Data(
                 sn_messaging::client::Error::AccessDenied(_),
             )) => Ok(()),
             _ => bail!("Unexpected: Deletion by non-owners should fail"),

@@ -30,7 +30,7 @@ use std::{
     str::FromStr,
     {collections::HashSet, net::SocketAddr, sync::Arc},
 };
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::broadcast::Receiver;
 
 // Number of attempts to make when trying to bootstrap to the network
 const NUM_OF_BOOTSTRAPPING_ATTEMPTS: u8 = 1;
@@ -98,7 +98,7 @@ impl Client {
         qp2p_config.forward_port = true;
 
         // Incoming error notifiers
-        let (err_sender, err_receiver) = tokio::sync::mpsc::channel::<CmdError>(10);
+        let (err_sender, err_receiver) = tokio::sync::broadcast::channel::<CmdError>(10);
 
         // Create the session with the network
         let mut session = Session::new(qp2p_config, err_sender)?;
@@ -157,8 +157,8 @@ impl Client {
         Ok(client)
     }
 
-    /// Access the error receiver to handle CmdErrors from 
-    pub fn listen_for_errors(&self) ->  Arc<Mutex<Receiver<CmdError>>> {
+    /// Access the error receiver to handle CmdErrors from
+    pub fn listen_for_errors(&self) -> Arc<Mutex<Receiver<CmdError>>> {
         self.incoming_errors.clone()
     }
 
@@ -219,8 +219,13 @@ impl Client {
     }
 
     #[cfg(test)]
-    pub async fn expect_cmd_error(&mut self) -> Option<CmdError> {
-        self.incoming_errors.lock().await.recv().await
+    pub async fn expect_cmd_error(&mut self) -> Result<CmdError, Error> {
+        self.incoming_errors
+            .lock()
+            .await
+            .recv()
+            .await
+            .map_err(|_| Error::TokioReceiverError)
     }
 }
 

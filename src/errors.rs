@@ -136,6 +136,9 @@ pub enum Error {
     /// Other sn_data_types errors
     #[error(transparent)]
     ConfigError(#[from] serde_json::Error),
+    /// Tokio Receiver error.
+    #[error("Tokio receive channel errored")]
+    TokioReceiverError,
     /// Io error.
     #[error(transparent)]
     IoError(#[from] io::Error),

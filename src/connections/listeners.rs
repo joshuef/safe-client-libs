@@ -285,7 +285,7 @@ impl Session {
                     correlation_id
                 );
                 trace!("Error received is: {:?}", error);
-                let _ = self.incoming_err_sender.send(error).await;
+                let _ = self.incoming_err_sender.send(error);
             }
             msg => {
                 warn!("Ignoring unexpected message type received: {:?}", msg);

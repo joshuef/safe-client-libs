@@ -23,6 +23,7 @@ use std::{
     sync::Arc,
 };
 use threshold_crypto::PublicKeySet;
+use tokio::sync::broadcast::Sender as BroadcastSender;
 use tokio::sync::mpsc::Sender;
 use xor_name::{Prefix, XorName};
 
@@ -43,7 +44,7 @@ pub struct Session {
     qp2p: QuicP2p,
     pending_queries: PendingQueryResponses,
     pending_transfers: PendingTransferValidations,
-    incoming_err_sender: Sender<CmdError>,
+    incoming_err_sender: BroadcastSender<CmdError>,
     endpoint: Option<Endpoint>,
     /// elders we've managed to connect to
     connected_elders: Arc<Mutex<BTreeMap<SocketAddr, XorName>>>,
@@ -55,7 +56,10 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(qp2p_config: QuicP2pConfig, err_sender: Sender<CmdError>) -> Result<Self, Error> {
+    pub fn new(
+        qp2p_config: QuicP2pConfig,
+        err_sender: BroadcastSender<CmdError>,
+    ) -> Result<Self, Error> {
         debug!("QP2p config: {:?}", qp2p_config);
 
         let qp2p = qp2p::QuicP2p::with_config(Some(qp2p_config), Default::default(), true)?;
