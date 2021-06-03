@@ -169,10 +169,6 @@ impl Client {
 
         Ok(Error::from(cmd_err))
 
-        // match cmd_err {
-        //     CmdError::Transfer(e)
-        // }
-
     }
 
     /// Return the client's FullId.
