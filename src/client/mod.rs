@@ -157,6 +157,11 @@ impl Client {
         Ok(client)
     }
 
+    /// Access the error receiver to handle CmdErrors from 
+    pub fn listen_for_errors(&self) ->  Arc<Mutex<Receiver<CmdError>>> {
+        self.incoming_errors.clone()
+    }
+
     /// Return the client's FullId.
     ///
     /// Useful for retrieving the PublicKey or KeyPair in the event you need to _sign_ something
