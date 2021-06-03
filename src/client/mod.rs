@@ -30,7 +30,7 @@ use std::{
     str::FromStr,
     {collections::HashSet, net::SocketAddr, sync::Arc},
 };
-use tokio::sync::broadcast::Receiver;
+use tokio::sync::broadcast::{Sender, Receiver};
 
 // Number of attempts to make when trying to bootstrap to the network
 const NUM_OF_BOOTSTRAPPING_ATTEMPTS: u8 = 1;
@@ -42,6 +42,8 @@ pub struct Client {
     transfer_actor: Arc<Mutex<SafeTransferActor<Keypair>>>,
     simulated_farming_payout_dot: Dot<PublicKey>,
     incoming_errors: Arc<Mutex<Receiver<CmdError>>>,
+    error_sender: Sender<CmdError>,
+
     session: Session,
 }
 
@@ -98,10 +100,10 @@ impl Client {
         qp2p_config.forward_port = true;
 
         // Incoming error notifiers
-        let (err_sender, err_receiver) = tokio::sync::broadcast::channel::<CmdError>(10);
+        let (error_sender, err_receiver) = tokio::sync::broadcast::channel::<CmdError>(10);
 
         // Create the session with the network
-        let mut session = Session::new(qp2p_config, err_sender)?;
+        let mut session = Session::new(qp2p_config, error_sender.clone())?;
         let client_pk = keypair.public_key();
 
         // Bootstrap to the network, connecting to the section responsible
@@ -139,6 +141,7 @@ impl Client {
             simulated_farming_payout_dot,
             session,
             incoming_errors: Arc::new(Mutex::new(err_receiver)),
+            error_sender
         };
 
         if cfg!(feature = "simulated-payouts") {
@@ -158,8 +161,8 @@ impl Client {
     }
 
     /// Access the error receiver to handle CmdErrors from
-    pub fn listen_for_errors(&self) -> Arc<Mutex<Receiver<CmdError>>> {
-        self.incoming_errors.clone()
+    pub fn listen_for_errors(&self) -> Receiver<CmdError> {
+        self.error_sender.subscribe()
     }
 
     /// Return the client's FullId.
