@@ -103,6 +103,9 @@ jobs:
       # TODO: Upload all logs as artifacts....
       - name: Node Logs
         run: |
+          ls .
+          ls ~/.safe
+          ls ~/.safe/node
           ls $HOME/.safe/node/local-test-network
           cat $HOME/.safe/node/local-test-network/sn-node-genesis/sn_node.log
         if: failure()
