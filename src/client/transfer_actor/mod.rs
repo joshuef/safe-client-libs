@@ -139,6 +139,44 @@ impl Client {
         }?;
 
         let mut actor = self.transfer_actor.lock().await;
+        
+        let received_history_len = history.len();
+        let our_history = actor.history();
+        let our_history_len = actor.history().len();
+        // TODO:
+        // if we have more history than sender of this.
+        // Propogate transfer as we have it.
+
+        if our_history_len > received_history_len {
+            // we could be out of sync, lets send our_history to all elders.
+            debug!(">> OUT OF SYNC");
+
+            /// we dont have msg/method to register credits atm...
+            // for credit in history.credits
+            // {
+            //     self.send_cmd(Cmd::Transfer(TransferCmd::RegisterTransfer(credit))).await;
+                
+            // }
+
+            let received_debit_count = history.debits.len();
+
+            debug!(">>> received debit len {:?}, our debit len : {:?}", received_debit_count, our_history.debits.len());
+
+            let starting_debit = received_debit_count;
+            for (i, debit) in our_history.debits.iter().enumerate()
+            {
+                debug!(">> iiiii {:?}", i);
+                // if i >= starting_debit {
+                    debug!(">>Updating elders with some known debits");
+                    self.send_cmd(Cmd::Transfer(TransferCmd::RegisterTransfer(debit.clone()))).await?;
+                // }
+
+            }
+
+        }
+
+
+
         match actor.from_history(history) {
             Ok(synced_transfer_outcome) => {
                 if let Some(transfers) = synced_transfer_outcome {
