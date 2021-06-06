@@ -96,7 +96,8 @@ impl Client {
         let mut qp2p_config = Config::new(config_file_path, bootstrap_config).qp2p;
         // We use feature `no-igd` so this will use the echo service only
         qp2p_config.forward_port = true;
-        // qp2p_config.idle_timeout_msec = Some(50);
+        // qp2p_config.idle_timeout_msec = Some(10000);
+        // qp2p_config.keep_alive_interval_msec = Some();
 
         // Incoming error notifiers
         let (err_sender, err_receiver) = tokio::sync::mpsc::channel::<CmdError>(10);

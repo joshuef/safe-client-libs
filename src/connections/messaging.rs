@@ -44,15 +44,28 @@ impl Session {
             self.qp2p.bootstrap().await?;
 
         self.endpoint = Some(endpoint.clone());
-        let mut bootstrap_nodes = endpoint
+        let mut bootstrap_nodes = endpoint.clone()
             .bootstrap_nodes()
             .to_vec()
             .into_iter()
             .collect::<BTreeSet<_>>();
-        let connected_elders = self.connected_elders.clone();
+        // let connected_elders = self.connected_elders.clone();
+
+        let cloned_endpoint = endpoint.clone();
         let _ = tokio::spawn(async move {
+
             while let Some(disconnected_peer) = disconnections.next().await {
-                let _ = connected_elders.lock().await.remove(&disconnected_peer);
+                // we assume elders should have high connectivity.
+                // any problem there and they'd be voted off and we'd get an updated section
+                // so just keep trying to reconnect
+                warn!("Disconnected from elder {:?}. Attempting to reconnect", disconnected_peer);
+                match cloned_endpoint.connect_to(&disconnected_peer).await {
+                    Ok(_) => info!("Reconnected to {:?}", disconnected_peer),
+                    Err(error) => {
+                        warn!("Could not reconnect to {:?}, error: {:?}", disconnected_peer, error);
+                    }
+                };
+                // let _ = connected_elders.lock().await.remove(&disconnected_peer);
             }
         });
 
@@ -443,9 +456,9 @@ impl Session {
         Ok(())
     }
 
-    pub(crate) fn disconnect_from_peers(&self, peers: Vec<SocketAddr>) -> Result<(), Error> {
+    pub(crate) async fn disconnect_from_peers(&self, peers: Vec<SocketAddr>) -> Result<(), Error> {
         for elder in peers {
-            self.endpoint()?.disconnect_from(&elder)?;
+            self.endpoint()?.disconnect_from(&elder).await?;
         }
 
         Ok(())
