@@ -228,7 +228,7 @@ impl Client {
             .transfer(cost_of_put, section_key, "".to_string())?
             .ok_or(Error::NoTransferEventsForLocalActor)?;
 
-        let signed_transferg = SignedTransfer {
+        let signed_transfer = SignedTransfer {
             debit: initiated.signed_debit,
             credit: initiated.signed_credit,
         };

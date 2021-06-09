@@ -302,14 +302,11 @@ impl Session {
         // We send the same message to all Elders concurrently
         let mut tasks = FuturesUnordered::new();
         let (sender, mut receiver) = channel::<QueryResponse>(7);
-        
-        let msg_id2 =  msg_id.clone();
-        let pending_queries2 = pending_queries.clone();
-        let _ = tokio::spawn( async move {
-            // Remove the response sender
-            trace!("Removing channel for {:?}", msg_id2);
-            let _ = pending_queries2.write().await.insert(msg_id, sender);
-        });
+
+        {
+            trace!("Inserting channel for {:?}", msg_id);
+            let _ = pending_queries.write().await.insert(msg_id, sender);
+        }
 
         // Set up response listeners
         for socket in elders {
@@ -426,12 +423,11 @@ impl Session {
             msg_id, response
         );
 
-        
-        let _ = tokio::spawn( async move {
+        {
             // Remove the response sender
             trace!("Removing channel for {:?}", msg_id);
             let _ = pending_queries.clone().write().await.remove(&msg_id);
-        });
+        }
 
         response
             .map(|response| QueryResult { response, msg_id })
