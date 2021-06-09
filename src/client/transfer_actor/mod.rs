@@ -228,7 +228,7 @@ impl Client {
             .transfer(cost_of_put, section_key, "".to_string())?
             .ok_or(Error::NoTransferEventsForLocalActor)?;
 
-        let signed_transfer = SignedTransfer {
+        let signed_transferg = SignedTransfer {
             debit: initiated.signed_debit,
             credit: initiated.signed_credit,
         };
@@ -283,10 +283,12 @@ impl Client {
                 Some(event) => match event {
                     Ok(transfer_validated) => {
                         response_count += 1;
-                        let mut actor = self.transfer_actor.write().await;
+                        let actor = self.transfer_actor.read().await;
                         // pass the received validation in to our actor
                         match actor.receive(transfer_validated) {
                             Ok(result) => {
+                                let mut actor = self.transfer_actor.write().await;
+
                                 // it's valid
                                 if let Some(validation) = result {
                                     actor.apply(ActorEvent::TransferValidationReceived(
